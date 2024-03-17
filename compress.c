@@ -4,43 +4,25 @@
 #include "compress.h"
 
 typedef struct{
-    char first_bits   :4;
-    char next_bits  :4;
+    unsigned char first_bits   :4;
+    unsigned char next_bits    :4;
 }fourBits;
-
-int writeToFile(fourBits num, char* file_name)
-{
-    FILE* file = fopen(file_name, "a");
-    if (file == NULL)
-    {
-        printf("Error: File not found\n");
-        return 1;
-    }
-    fputc(num.first_bits, file);
-    fputc(num.next_bits, file);
-    int checkError = fclose(file);
-    if(checkError == EOF)
-    {
-        printf("Error closing file\n");
-        return 2;
-    }
-    return 0;
-}
 
 int compress(FILE* file, char* file_name)
 {
     file_name[strlen(file_name) - 4] = '\0';
     char* new_file_name = strcat(file_name, ".bin");
-    fourBits num;
-    printf("First char: %c\n", fgetc(file));
+    FILE* bin_file = fopen(file_name, "ab");
     printf("New file name: %s\n", new_file_name);
-    char length[5000];
-    fgets(length, 5000, file);
-    printf("Length: %ld\n", strlen(length));
+
+    fourBits num;
+    fseek(file, 0, SEEK_END);
+    size_t length = ftell(file) - 1;
+    printf("Length: %ld\n", length);
     size_t i = 1;
     fflush(stdin);
     fseek(file, 0, SEEK_SET);
-    while (i <= strlen(length)/2)
+    while (i <= length/2)
     {
         printf("i: %ld\n", i);
         int number = fgetc(file);
@@ -50,25 +32,75 @@ int compress(FILE* file, char* file_name)
         printf("Second Number: %c\n", number);
         num.next_bits = ~number;
         printf("Stuck in the loop, first bits: %d, Second bits: %d\n", num.first_bits, num.next_bits);
-        writeToFile(num, new_file_name);
+        fwrite(&num, sizeof(num), 1, bin_file);
         i++;
     }
-    if(strlen(length) % 2 != 0)
+    if(length % 2 != 0)
     {
         int number = fgetc(file);
         printf("Got out of the loop, Number: %c\n", number);
         num.first_bits = ~number;
         num.next_bits = 0x0000;
-        printf("Stuck in the loop, first bits: %d, Second bits: %d\n", num.first_bits, num.next_bits);
-        writeToFile(num, new_file_name);
+        printf("first bits: %d, Second bits: %d\n", num.first_bits, num.next_bits);
+        fwrite(&num, sizeof(num), 1, bin_file);
     }
-        
 
+    int checkError = fclose(bin_file);
+    if(checkError == EOF)
+    {
+        printf("Error closing file\n");
+        return 2;
+    }
+    printf("Compressed file\n");
     return 0;
 }
-int decompress(FILE* file)
+
+int decompress(FILE* file, char* file_name)
 {
-    fclose(file);
+    file_name[strlen(file_name) - 4] = '\0';
+    char* new_file_name = strcat(file_name, ".txt");
+    FILE* txt_file = fopen(file_name, "a");
+    printf("New file name: %s\n", new_file_name);
+
+    fourBits num;
+    fseek(file, 0, SEEK_END);
+    size_t length = ftell(file);
+    printf("Length: %ld\n", length);
+    size_t i = 1;
+    fflush(stdin);
+    fseek(file, 0, SEEK_SET);
+    while (i <= length - 1)
+    {
+        char number;
+        fread(&number, sizeof(number), 1, file);
+        printf("Number: %d\n", number);
+        number = ~number;
+        num.first_bits = number;
+        num.next_bits = number >> 4;
+        printf("First bits: %d, Second bits: %d\n", num.first_bits, num.next_bits);
+        fprintf(txt_file, "%d", num.first_bits);
+        fprintf(txt_file, "%d", num.next_bits);
+        i++;
+    }
+
+    if(length % 2 != 0)
+    {
+        char number;
+        fread(&number, sizeof(number), 1, file);
+        printf("Number: %d\n", number);
+        number = ~number;
+        num.first_bits = number;
+        num.next_bits = 0;
+        printf("First bits: %d, Second bits: %d\n", num.first_bits, num.next_bits);
+        fprintf(txt_file, "%d", num.first_bits);
+    }
+
+    int checkError = fclose(txt_file);
+    if(checkError == EOF)
+    {
+        printf("Error closing file\n");
+        return 2;
+    }
     printf("Decompressing file\n");
     return 0;
 }

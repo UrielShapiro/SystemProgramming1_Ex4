@@ -25,6 +25,13 @@ int main(int argc, char **argv)
     }
     printf("Choice: %c\n", choice);
     printf("File name: %s\n", file_name);
+    
+    char* suffix = file_name + strlen(file_name) - 4;
+    if(strcmp(suffix, ".txt") != 0 && strcmp(suffix, ".bin") != 0)
+    {
+        printf("Error: File must be a .txt/.bin file\n");
+        return 1;
+    }
 
     FILE *file;
     if ((file = fopen(file_name, "r")) == NULL)
@@ -32,15 +39,15 @@ int main(int argc, char **argv)
         printf("Error: File not found\n");
         return 1;
     }
-    if (choice == 'c')
+    if (choice == 'c' && strcmp(suffix, ".txt") == 0)
     {
         compress(file, file_name);
     }
-    else if (choice == 'd')
+    else if (choice == 'd' && strcmp(suffix, ".bin") == 0)
     {
-        decompress(file);
+        decompress(file, file_name);
     }
-
+    // After compressing or decompressing, close the file
     if (fclose(file) == EOF)
     {
         printf("Error closing file\n");
